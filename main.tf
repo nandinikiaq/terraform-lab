@@ -1,3 +1,23 @@
+data "aws_ami" "amazon_linux" {
+  most_recent = true
+  owners      = ["amazon"]
+
+  filter {
+    name   = "name"
+    values = ["al2023-ami-2023.*-x86_64"]
+  }
+
+  filter {
+    name   = "architecture"
+    values = ["x86_64"]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+}
+
 resource "aws_vpc" "main" {
   cidr_block           = var.vpc_cidr
   enable_dns_support   = true
@@ -26,6 +46,23 @@ resource "aws_subnet" "private" {
 
   tags = {
     Name = "${var.name_prefix}-private"
+  }
+}
+
+resource "aws_security_group" "public_instance" {
+  name        = "${var.name_prefix}-public-ec2-sg"
+  description = "Security group for the public EC2 instance."
+  vpc_id      = aws_vpc.main.id
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "${var.name_prefix}-public-ec2-sg"
   }
 }
 
@@ -66,4 +103,20 @@ resource "aws_route_table" "private" {
 resource "aws_route_table_association" "private" {
   subnet_id      = aws_subnet.private.id
   route_table_id = aws_route_table.private.id
+}
+
+resource "aws_instance" "public" {
+  ami                         = data.aws_ami.amazon_linux.id
+  instance_type               = var.instance_type
+  subnet_id                   = aws_subnet.public.id
+  vpc_security_group_ids      = [aws_security_group.public_instance.id]
+  associate_public_ip_address = true
+
+  metadata_options {
+    http_tokens = "required"
+  }
+
+  tags = {
+    Name = "${var.name_prefix}-public-ec2"
+  }
 }

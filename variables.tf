@@ -32,3 +32,9 @@ variable "availability_zone" {
   type        = string
   default     = "ap-south-1a"
 }
+
+variable "instance_type" {
+  description = "EC2 instance type for the public instance."
+  type        = string
+  default     = "t3.micro"
+}
