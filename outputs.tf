@@ -27,3 +27,13 @@ output "public_instance_ip" {
   description = "Public IPv4 address of the EC2 instance."
   value       = aws_instance.public.public_ip
 }
+
+output "s3_bucket_name" {
+  description = "Name of the private S3 bucket."
+  value       = aws_s3_bucket.lab.id
+}
+
+output "s3_bucket_arn" {
+  description = "ARN of the private S3 bucket."
+  value       = aws_s3_bucket.lab.arn
+}
