@@ -37,3 +37,13 @@ output "s3_bucket_arn" {
   description = "ARN of the private S3 bucket."
   value       = aws_s3_bucket.lab.arn
 }
+
+output "cloudfront_distribution_id" {
+  description = "ID of the CloudFront website distribution."
+  value       = aws_cloudfront_distribution.site.id
+}
+
+output "cloudfront_website_url" {
+  description = "HTTPS URL of the sample website."
+  value       = "https://${aws_cloudfront_distribution.site.domain_name}"
+}

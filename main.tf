@@ -171,20 +171,82 @@ resource "aws_s3_bucket_policy" "lab" {
   bucket = aws_s3_bucket.lab.id
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [{
-      Sid       = "DenyInsecureTransport"
-      Effect    = "Deny"
-      Principal = "*"
-      Action    = "s3:*"
-      Resource = [
-        aws_s3_bucket.lab.arn,
-        "${aws_s3_bucket.lab.arn}/*"
-      ]
-      Condition = {
-        Bool = {
-          "aws:SecureTransport" = "false"
+    Statement = [
+      {
+        Sid       = "DenyInsecureTransport"
+        Effect    = "Deny"
+        Principal = "*"
+        Action    = "s3:*"
+        Resource = [
+          aws_s3_bucket.lab.arn,
+          "${aws_s3_bucket.lab.arn}/*"
+        ]
+        Condition = {
+          Bool = {
+            "aws:SecureTransport" = "false"
+          }
+        }
+      },
+      {
+        Sid       = "AllowCloudFrontReadOnly"
+        Effect    = "Allow"
+        Principal = { Service = "cloudfront.amazonaws.com" }
+        Action    = "s3:GetObject"
+        Resource  = "${aws_s3_bucket.lab.arn}/*"
+        Condition = {
+          StringEquals = {
+            "AWS:SourceArn" = aws_cloudfront_distribution.site.arn
+          }
         }
       }
-    }]
+    ]
   })
+}
+
+resource "aws_s3_object" "sample_site" {
+  bucket       = aws_s3_bucket.lab.id
+  key          = "index.html"
+  source       = "${path.module}/index.html"
+  content_type = "text/html"
+  etag         = filemd5("${path.module}/index.html")
+}
+
+resource "aws_cloudfront_origin_access_control" "s3" {
+  name                              = "${var.name_prefix}-s3-oac"
+  description                       = "Private S3 access for the lab site distribution."
+  origin_access_control_origin_type = "s3"
+  signing_behavior                  = "always"
+  signing_protocol                  = "sigv4"
+}
+
+resource "aws_cloudfront_distribution" "site" {
+  enabled             = true
+  comment             = "${var.name_prefix} sample website"
+  default_root_object = "index.html"
+  price_class         = "PriceClass_200"
+
+  origin {
+    domain_name              = aws_s3_bucket.lab.bucket_regional_domain_name
+    origin_id                = "${var.name_prefix}-s3-origin"
+    origin_access_control_id = aws_cloudfront_origin_access_control.s3.id
+  }
+
+  default_cache_behavior {
+    target_origin_id       = "${var.name_prefix}-s3-origin"
+    viewer_protocol_policy = "redirect-to-https"
+    allowed_methods        = ["GET", "HEAD"]
+    cached_methods         = ["GET", "HEAD"]
+    cache_policy_id        = "658327ea-f89d-4fab-a63d-7e88639e58f6"
+    compress               = true
+  }
+
+  restrictions {
+    geo_restriction {
+      restriction_type = "none"
+    }
+  }
+
+  viewer_certificate {
+    cloudfront_default_certificate = true
+  }
 }
